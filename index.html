@@ -790,7 +790,7 @@ async function installApp() {
     const iconInstall = document.getElementById('iconInstall');
     const spinnerInstall = document.getElementById('spinnerInstall');
 
-    // 1. Aktifkan Mode Loading & Kunci Tombol secara Permanen
+    // 1. Aktifkan Mode Loading & Kunci Tombol
     btnInstall.disabled = true;
     btnInstall.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
     textInstall.innerText = 'Sedang menginstal...';
@@ -807,21 +807,54 @@ async function installApp() {
             
             if (choiceResult.outcome === 'accepted') {
                 console.log('Pengguna menerima instalasi PWA');
+                
+                // 2. Tambahkan durasi tunggu (4 detik) agar OS selesai menginstal di latar belakang
+                setTimeout(() => {
+                    // Ubah teks dan ikon menjadi sukses
+                    textInstall.innerText = 'Instalasi Selesai!';
+                    spinnerInstall.classList.remove('fa-circle-notch', 'fa-spin');
+                    spinnerInstall.classList.add('fa-check');
+                    
+                    // Tandai aplikasi telah terinstal di local storage
+                    localStorage.setItem('isAppInstalled', 'true');
+                    
+                    // Beri jeda 1 detik untuk membaca teks "Selesai" sebelum memblokir layar
+                    setTimeout(() => {
+                        blockBrowserAccess();
+                    }, 1000);
+                    
+                }, 4000); // 4000 ms = 4 detik durasi proses instalasi
+
             } else {
                 console.log('Pengguna menolak instalasi PWA');
+                // 3. Kembalikan tombol seperti semula jika pengguna menolak (Batal)
+                resetInstallButton();
             }
             // Kosongkan prompt setelah digunakan
             deferredPrompt = null;
         } else {
-            // Tampilkan pesan panduan manual jika API belum terinisialisasi (misal di iOS/Safari)
-            showToast("Gunakan menu 'Add to Home Screen' atau 'Tambahkan ke Layar Utama' pada peramban.", "info");
+            // Tampilkan pesan panduan manual jika API belum terinisialisasi
+            showToast("Gunakan menu 'Add to Home Screen' pada peramban.", "info");
+            resetInstallButton();
         }
     } catch (error) {
         console.error("Terjadi kesalahan saat menginstal:", error);
+        resetInstallButton();
     }
-    
-    // Blok `finally` yang sebelumnya berisi kode untuk mereset tombol kini dihapus,
-    // sehingga tombol akan terus berada dalam tampilan "Sedang menginstal..."
+}
+
+// Fungsi tambahan untuk mereset tampilan tombol jika instalasi batal / gagal
+function resetInstallButton() {
+    const btnInstall = document.getElementById('btnInstall');
+    const textInstall = document.getElementById('textInstall');
+    const iconInstall = document.getElementById('iconInstall');
+    const spinnerInstall = document.getElementById('spinnerInstall');
+
+    btnInstall.disabled = false;
+    btnInstall.classList.remove('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+    textInstall.innerText = 'Instal Aplikasi';
+    iconInstall.classList.remove('hidden');
+    spinnerInstall.classList.add('hidden');
 }
 
         // --- LOGIKA PEMBLOKIRAN HALAMAN JIKA SUDAH TERINSTAL ---
