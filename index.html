@@ -790,7 +790,7 @@ async function installApp() {
     const iconInstall = document.getElementById('iconInstall');
     const spinnerInstall = document.getElementById('spinnerInstall');
 
-    // 1. Aktifkan Mode Loading & Kunci Tombol
+    // 1. Aktifkan Mode Loading & Kunci Tombol secara Permanen
     btnInstall.disabled = true;
     btnInstall.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
     textInstall.innerText = 'Sedang menginstal...';
@@ -807,27 +807,12 @@ async function installApp() {
             
             if (choiceResult.outcome === 'accepted') {
                 console.log('Pengguna menerima instalasi PWA');
-                
-                // 2. Tambahkan durasi tunggu (4 detik) agar OS selesai menginstal di latar belakang
-                setTimeout(() => {
-                    // Ubah teks dan ikon menjadi sukses
-                    textInstall.innerText = 'Instalasi Selesai!';
-                    spinnerInstall.classList.remove('fa-circle-notch', 'fa-spin');
-                    spinnerInstall.classList.add('fa-check');
-                    
-                    // Tandai aplikasi telah terinstal di local storage
-                    localStorage.setItem('isAppInstalled', 'true');
-                    
-                    // Beri jeda 1 detik untuk membaca teks "Selesai" sebelum memblokir layar
-                    setTimeout(() => {
-                        blockBrowserAccess();
-                    }, 1000);
-                    
-                }, 4000); // 4000 ms = 4 detik durasi proses instalasi
-
+                // TIDAK ADA KODE DI SINI.
+                // Tombol akan dibiarkan membeku dalam state "Sedang menginstal..." (loading & disabel) 
+                // secara permanen hingga halaman di-reload.
             } else {
                 console.log('Pengguna menolak instalasi PWA');
-                // 3. Kembalikan tombol seperti semula jika pengguna menolak (Batal)
+                // 3. Kembalikan tombol seperti semula HANYA JIKA pengguna menolak (Batal)
                 resetInstallButton();
             }
             // Kosongkan prompt setelah digunakan
@@ -857,32 +842,18 @@ function resetInstallButton() {
     spinnerInstall.classList.add('hidden');
 }
 
-        // --- LOGIKA PEMBLOKIRAN HALAMAN JIKA SUDAH TERINSTAL ---
+       // --- LOGIKA PEMBLOKIRAN HALAMAN JIKA SUDAH TERINSTAL ---
         
         function blockBrowserAccess() {
             document.getElementById('uninstalled-content').classList.add('hidden');
             document.getElementById('installed-content').classList.remove('hidden');
         }
 
-        // 1. Cek apakah pengguna saat ini sedang membuka dari dalam PWA (Standalone Mode)
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-        if (isStandalone) {
-            // Jika terbuka dari dalam aplikasi, catat jejak di penyimpanan perangkat
-            // (Sangat krusial untuk perangkat iOS yang tidak memiliki event otomatis)
-            localStorage.setItem('isAppInstalled', 'true');
-        } else {
-            // Jika terbuka dari peramban biasa (Chrome/Safari), cek riwayat instalasinya
-            if (localStorage.getItem('isAppInstalled') === 'true') {
-                blockBrowserAccess(); // Blokir halaman 
-            }
-        }
-
-        // 2. Tangkap event otomatis saat instalasi sukses (Khusus Android/Chrome)
+        // Tangkap event otomatis HANYA saat proses instalasi berhasil dilakukan di tab peramban ini
         window.addEventListener('appinstalled', (event) => {
             console.log('Instalasi sukses dicatat oleh sistem.');
-            localStorage.setItem('isAppInstalled', 'true');
-            blockBrowserAccess();
+            // blockBrowserAccess(); <--- Hapus atau jadikan komentar baris ini
+            // Dengan begini layar tidak akan tertutup, dan tombol instal akan terus berputar (loading).
         });
 
     </script>
