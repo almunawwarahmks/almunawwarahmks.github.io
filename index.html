@@ -40,9 +40,11 @@
         <p class="text-slate-500 mb-8 text-sm leading-relaxed">
             Aplikasi ini dirancang khusus untuk pengalaman mobile terbaik. Silakan instal aplikasi ke layar utama Anda untuk mulai menggunakannya.
         </p>
-        <button onclick="installApp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center w-full max-w-xs mx-auto mb-4">
-            <i class="fa-solid fa-download mr-2"></i> Instal Aplikasi
-        </button>
+        <button id="btnInstall" onclick="installApp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center w-full max-w-xs mx-auto mb-4">
+    <i id="iconInstall" class="fa-solid fa-download mr-2"></i> 
+    <span id="textInstall">Instal Aplikasi</span>
+    <i id="spinnerInstall" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
+</button>
         <div class="text-xs text-slate-400 mt-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-w-xs mx-auto text-left">
             <p class="font-semibold text-slate-600 mb-1"><i class="fa-brands fa-apple text-lg align-middle mr-1"></i> Pengguna iOS / Safari:</p>
             Tekan ikon <i class="fa-solid fa-arrow-up-from-bracket mx-1"></i> <b>Share</b> di bawah layar Anda, lalu geser dan pilih <b>"Add to Home Screen"</b>.
@@ -758,22 +760,59 @@
             });
         }
 
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-        });
+       // Menangkap event bawaan dari peramban jika aplikasi siap diinstal
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+});
 
-        function installApp() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    deferredPrompt = null;
-                });
+async function installApp() {
+    const btnInstall = document.getElementById('btnInstall');
+    const textInstall = document.getElementById('textInstall');
+    const iconInstall = document.getElementById('iconInstall');
+    const spinnerInstall = document.getElementById('spinnerInstall');
+
+    // 1. Aktifkan Mode Loading & Kunci Tombol
+    btnInstall.disabled = true;
+    btnInstall.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+    textInstall.innerText = 'Sedang menginstal...';
+    iconInstall.classList.add('hidden');
+    spinnerInstall.classList.remove('hidden');
+
+    try {
+        if (deferredPrompt) {
+            // Munculkan prompt instalasi bawaan peramban
+            deferredPrompt.prompt();
+            
+            // Tunggu respon pengguna (Accept atau Dismiss)
+            const choiceResult = await deferredPrompt.userChoice;
+            
+            if (choiceResult.outcome === 'accepted') {
+                console.log('Pengguna menerima instalasi PWA');
             } else {
-                showToast("Gunakan menu browser 'Add to Home Screen' untuk menginstal.", "info");
+                console.log('Pengguna menolak instalasi PWA');
             }
+            // Kosongkan prompt setelah digunakan
+            deferredPrompt = null;
+        } else {
+            // Beri sedikit jeda agar animasi loading terlihat oleh pengguna (UX)
+            await new Promise(resolve => setTimeout(resolve, 600));
+            
+            // Tampilkan pesan panduan manual jika API belum terinisialisasi (misal di iOS/Safari)
+            showToast("Gunakan menu 'Add to Home Screen' atau 'Tambahkan ke Layar Utama' pada peramban.", "info");
         }
+    } catch (error) {
+        console.error("Terjadi kesalahan saat menginstal:", error);
+    } finally {
+        // 2. Kembalikan Tombol ke Keadaan Semula (Matikan Mode Loading)
+        btnInstall.disabled = false;
+        btnInstall.classList.remove('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
+        textInstall.innerText = 'Instal Aplikasi';
+        iconInstall.classList.remove('hidden');
+        spinnerInstall.classList.add('hidden');
+    }
+}
 
     </script>
 </body>
