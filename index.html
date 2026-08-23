@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="icon-192x192.png">
+    <title>Buku Kas Pribadi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Sembunyikan scrollbar untuk tampilan mobile yang lebih bersih */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { -webkit-tap-highlight-color: transparent; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+
+        /* Logika Tampilan PWA Mobile */
+        #install-screen { display: none; }
+        
+        @media (max-width: 768px) {
+            /* Sembunyikan aplikasi utama di peramban (browser) mobile */
+            #main-app { display: none !important; }
+            /* Tampilkan layar khusus instal di peramban mobile */
+            #install-screen { display: flex; }
+        }
+
+        /* Jika dibuka sebagai aplikasi PWA (standalone) di mobile, kembali tampilkan aplikasi utama */
+        @media (max-width: 768px) and (display-mode: standalone) {
+            #main-app { display: flex !important; }
+            #install-screen { display: none !important; }
+        }
+        
+        /* Fallback tambahan untuk Standalone di iOS */
+        @media (max-width: 768px) and (-webkit-display-mode: standalone) {
+            #main-app { display: flex !important; }
+            #install-screen { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 antialiased selection:bg-blue-200">
+
+    <!-- Layar Instalasi PWA (Hanya tampil di mobile browser) -->
+    <div id="install-screen" class="min-h-screen bg-slate-50 flex-col items-center justify-center px-6 text-center animate-fade-in">
+        <div class="w-24 h-24 bg-blue-600 rounded-3xl shadow-lg flex items-center justify-center mb-6 mx-auto">
+            <i class="fa-solid fa-wallet text-white text-5xl"></i>
+        </div>
+        <h1 class="text-2xl font-extrabold text-slate-800 mb-2">Buku Kas Pribadi</h1>
+        <p class="text-slate-500 mb-8 text-sm leading-relaxed">
+            Aplikasi ini dirancang khusus untuk pengalaman mobile terbaik. Silakan instal aplikasi ke layar utama Anda untuk mulai menggunakannya.
+        </p>
+        
+        <button onclick="installApp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center w-full max-w-xs mx-auto mb-4">
+            <i class="fa-solid fa-download mr-2"></i> Instal Aplikasi
+        </button>
+
+        <div class="text-xs text-slate-400 mt-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-w-xs mx-auto text-left">
+            <p class="font-semibold text-slate-600 mb-1"><i class="fa-brands fa-apple text-lg align-middle mr-1"></i> Pengguna iOS / Safari:</p>
+            Tekan ikon <i class="fa-solid fa-arrow-up-from-bracket mx-1"></i> <b>Share</b> di bawah layar Anda, lalu geser dan pilih <b>"Add to Home Screen"</b>.
+        </div>
+    </div>
+
+    <!-- Container Utama: Dibatasi lebar max untuk simulasi layar HP (Mobile First) -->
+    <div id="main-app" class="max-w-md mx-auto min-h-screen bg-slate-50 shadow-2xl relative overflow-hidden flex flex-col">
+        
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-5 pt-8 rounded-b-3xl shadow-md z-10 relative">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-xl font-bold tracking-wide"><i class="fa-solid fa-wallet mr-2"></i> Buku Kas</h1>
+            </div>
+
+            <!-- Kartu Saldo Utama -->
+            <div class="text-center mb-4">
+                <p class="text-blue-100 text-sm font-medium mb-1">Total Saldo Saat Ini</p>
+                <h2 class="text-4xl font-extrabold tracking-tight" id="totalSaldo">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl opacity-80"></i>
+                </h2>
+            </div>
+
+            <!-- Saldo Detail (Cash & Transfer) -->
+            <div class="flex bg-white/20 rounded-xl p-3 backdrop-blur-sm mt-4">
+                <div class="w-1/2 text-center border-r border-white/30">
+                    <p class="text-xs text-blue-100 mb-1"><i class="fa-solid fa-money-bill-wave mr-1"></i> Cash</p>
+                    <p class="text-lg font-bold" id="saldoCash">
+                        <i class="fa-solid fa-ellipsis opacity-80 text-sm"></i>
+                    </p>
+                </div>
+                <div class="w-1/2 text-center">
+                    <p class="text-xs text-blue-100 mb-1"><i class="fa-solid fa-building-columns mr-1"></i> Transfer</p>
+                    <p class="text-lg font-bold" id="saldoTransfer">
+                        <i class="fa-solid fa-ellipsis opacity-80 text-sm"></i>
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex border-b bg-white sticky top-0 z-0">
+            <button onclick="switchTab('form')" id="tab-form" class="flex-1 py-4 text-sm text-center tab-active transition-all">
+                <i class="fa-solid fa-pen-to-square mr-1"></i> Catat Transaksi
+            </button>
+            <button onclick="switchTab('history')" id="tab-history" class="flex-1 py-4 text-sm text-center text-slate-500 transition-all">
+                <i class="fa-solid fa-list mr-1"></i> Riwayat
+            </button>
+        </div>
+
+        <main class="flex-1 overflow-y-auto p-5 pb-24">
+            
+            <!-- View: Form Input -->
+            <div id="view-form" class="space-y-5 animate-fade-in">
+
+                <form id="transaksiForm" class="space-y-4">
+                    <input type="hidden" id="jenisTransaksi" value="Masuk">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Tanggal</label>
+                        <div class="relative">
+                            <i class="fa-regular fa-calendar absolute left-3 top-3 text-slate-400"></i>
+                            <input type="date" id="inputTanggal" required class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Nominal (Rp)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-slate-500 font-bold">Rp</span>
+                            <input type="text" id="inputNominal" required placeholder="0" inputmode="numeric" onkeyup="formatRupiahInput(this)" class="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-lg font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition shadow-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-2 uppercase">Metode Pembayaran</label>
+                        <!-- Input hidden menyimpan nilai (kosong di awal) -->
+                        <input type="hidden" id="inputMetode" value="">
+                        <div class="flex gap-3">
+                            <button type="button" id="btnMetodeCash" onclick="pilihMetode('Cash')" class="flex-1 py-2.5 border-2 border-slate-200 text-slate-500 font-semibold rounded-xl flex items-center justify-center transition-all hover:bg-slate-50">
+                                <i class="fa-solid fa-money-bill-wave mr-2"></i> Cash
+                            </button>
+                            <button type="button" id="btnMetodeTransfer" onclick="pilihMetode('Transfer')" class="flex-1 py-2.5 border-2 border-slate-200 text-slate-500 font-semibold rounded-xl flex items-center justify-center transition-all hover:bg-slate-50">
+                                <i class="fa-solid fa-building-columns mr-2"></i> Transfer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Keterangan</label>
+                        <textarea id="inputKeterangan" required placeholder="Contoh: Beli makan siang, Gaji, dll" rows="2" class="w-full bg-white border border-slate-200 rounded-xl p-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"></textarea>
+                    </div>
+
+                    <!-- Tombol Aksi Langsung (Masuk / Keluar) -->
+                    <div class="flex gap-3 mt-4">
+                        <button type="submit" onclick="document.getElementById('jenisTransaksi').value='Masuk'" id="btnSubmitMasuk" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 transition-all active:scale-95 flex justify-center items-center">
+                            <i class="fa-solid fa-arrow-down mr-2"></i> Pemasukan
+                            <i id="spinnerMasuk" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
+                        </button>
+                        <button type="submit" onclick="document.getElementById('jenisTransaksi').value='Keluar'" id="btnSubmitKeluar" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-red-200 transition-all active:scale-95 flex justify-center items-center">
+                            <i class="fa-solid fa-arrow-up mr-2"></i> Pengeluaran
+                            <i id="spinnerKeluar" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- View: History List -->
+            <div id="view-history" class="hidden space-y-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-slate-700">Riwayat Transaksi</h3>
+                    <button onclick="loadDataDariSheet()" class="text-blue-500 text-sm p-2 hover:bg-blue-50 rounded-lg transition"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                </div>
+                
+                <!-- Filter Card -->
+                <div class="bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fa-solid fa-filter text-slate-400"></i>
+                        <span class="text-sm font-semibold text-slate-600">Filter Riwayat</span>
+                    </div>
+                    <!-- Langsung memanggil applyFilter() saat nilai dropdown berubah -->
+                    <select id="filterWaktu" onchange="toggleCustomDate(); applyFilter();" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+                        <option value="semua">Semua Waktu (50 Terakhir)</option>
+                        <option value="hari_ini" selected>Hari Ini</option>
+                        <option value="bulan_ini">Bulan Ini</option>
+                        <option value="rentang">Rentang Tanggal</option>
+                    </select>
+
+                    <!-- Filter Status -->
+                    <select id="filterStatus" onchange="applyFilter();" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+                        <option value="aktif" selected>Status: Aktif Saja</option>
+                        <option value="dihapus">Status: Dihapus Saja</option>
+                        <option value="semua">Semua Status</option>
+                    </select>
+
+                    <div id="customDateRange" class="hidden flex gap-2">
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Dari</label>
+                            <!-- Langsung memanggil applyFilter() saat input tanggal berubah -->
+                            <input type="date" id="filterMulai" onchange="applyFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Sampai</label>
+                            <!-- Langsung memanggil applyFilter() saat input tanggal berubah -->
+                            <input type="date" id="filterSelesai" onchange="applyFilter()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="historyContainer" class="space-y-3">
+                    <!-- Loading Skeleton -->
+                    <div class="animate-pulse flex space-x-4 bg-white p-4 rounded-xl border">
+                        <div class="rounded-full bg-slate-200 h-10 w-10"></div>
+                        <div class="flex-1 space-y-2 py-1">
+                            <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+                            <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-full text-sm shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center whitespace-nowrap">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-green-400 mr-2 text-lg"></i>
+        <span id="toastMessage">Pesan Toast</span>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center px-4 transition-opacity">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in">
+            <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-500 mb-4 mx-auto">
+                <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 text-center mb-1">Hapus Transaksi?</h3>
+            <p class="text-slate-500 text-sm text-center mb-4">Data ini tidak akan terhitung lagi pada saldo Anda (Metode diubah menjadi "Dihapus").</p>
+            
+            <!-- Input Password Hapus -->
+            <div class="mb-5">
+                <input type="password" id="inputPasswordHapus" placeholder="Masukkan password (123456)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-center" autocomplete="off">
+                <p id="errorPasswordHapus" class="text-red-500 text-[11px] font-semibold mt-1.5 text-center hidden">Password salah atau kosong!</p>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all active:scale-95">Batal</button>
+                <button onclick="executeDelete()" id="btnConfirmDelete" class="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-bold shadow-lg shadow-red-200 hover:bg-red-600 transition-all active:scale-95 flex justify-center items-center">
+                    <span>Ya, Hapus</span>
+                    <i id="spinnerDelete" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const appScriptUrl = "https://script.google.com/macros/s/AKfycbyZF2IWU3IipZt_zLobvBw5z0oozosQ6xZSj9nLAqGi4KTSOU23SCwPXBLeADH0wIk/exec";
+        
+        // Inisialisasi Tanggal Hari Ini Default (Sesuai Zona Waktu Lokal)
+        const todayDate = new Date();
+        const year = todayDate.getFullYear();
+        const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+        const day = String(todayDate.getDate()).padStart(2, '0');
+        document.getElementById('inputTanggal').value = `${year}-${month}-${day}`;
+
+        // 1. Inisialisasi & Pengaturan URL
+        window.onload = () => {
+            loadDataDariSheet();
+        };
+
+        // 2. UI Interaksi (Tab & Toggle)
+        function switchTab(tab) {
+            const btnForm = document.getElementById('tab-form');
+            const btnHist = document.getElementById('tab-history');
+            const viewForm = document.getElementById('view-form');
+            const viewHist = document.getElementById('view-history');
+
+            if(tab === 'form') {
+                btnForm.classList.add('tab-active');
+                btnForm.classList.remove('text-slate-500');
+                btnHist.classList.remove('tab-active');
+                btnHist.classList.add('text-slate-500');
+                
+                viewForm.classList.remove('hidden');
+                viewHist.classList.add('hidden');
+            } else {
+                btnHist.classList.add('tab-active');
+                btnHist.classList.remove('text-slate-500');
+                btnForm.classList.remove('tab-active');
+                btnForm.classList.add('text-slate-500');
+                
+                viewHist.classList.remove('hidden');
+                viewForm.classList.add('hidden');
+                
+                // Pemanggilan loadDataDariSheet() di sini dihapus agar 
+                // saldo tidak loading ulang saat sekadar pindah tab.
+                // Data bisa diperbarui manual via tombol Refresh di dalam riwayat.
+            }
+        }
+
+        // 3. Format Currency & UX
+        function formatRupiah(angka) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+        }
+
+        function formatRupiahInput(input) {
+            let value = input.value.replace(/[^,\d]/g, '').toString();
+            if(value) {
+                input.value = new Intl.NumberFormat('id-ID').format(value);
+            }
+        }
+
+        function getNominalNumber(str) {
+            return Number(str.replace(/\./g, ''));
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            document.getElementById('toastMessage').innerText = message;
+            
+            if(type === 'success') {
+                icon.className = 'fa-solid fa-circle-check text-green-400 mr-2 text-lg';
+            } else if (type === 'info') {
+                icon.className = 'fa-solid fa-circle-info text-blue-400 mr-2 text-lg';
+            } else {
+                icon.className = 'fa-solid fa-circle-exclamation text-red-400 mr-2 text-lg';
+            }
+
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 3000);
+        }
+
+        // Fungsi UI: Memilih Metode Pembayaran
+        function pilihMetode(metode) {
+            document.getElementById('inputMetode').value = metode;
+            
+            const btnCash = document.getElementById('btnMetodeCash');
+            const btnTransfer = document.getElementById('btnMetodeTransfer');
+            
+            // Kembalikan tombol ke warna default
+            const defaultClass = "flex-1 py-2.5 border-2 border-slate-200 text-slate-500 font-semibold rounded-xl flex items-center justify-center transition-all hover:bg-slate-50";
+            btnCash.className = defaultClass;
+            btnTransfer.className = defaultClass;
+            
+            // Beri warna khusus (Aktif) untuk tombol yang dipilih
+            const activeClass = "flex-1 py-2.5 border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold rounded-xl flex items-center justify-center transition-all shadow-sm";
+            if (metode === 'Cash') {
+                btnCash.className = activeClass;
+            } else if (metode === 'Transfer') {
+                btnTransfer.className = activeClass;
+            }
+        }
+
+        // Fungsi UI: Me-reset UI Metode Pembayaran
+        function resetMetodeUI() {
+            document.getElementById('inputMetode').value = '';
+            const defaultClass = "flex-1 py-2.5 border-2 border-slate-200 text-slate-500 font-semibold rounded-xl flex items-center justify-center transition-all hover:bg-slate-50";
+            document.getElementById('btnMetodeCash').className = defaultClass;
+            document.getElementById('btnMetodeTransfer').className = defaultClass;
+        }
+
+        // 4. API Request: Ambil Data (GET)
+        let allHistoryData = []; // Menyimpan semua riwayat dari server
+
+        // Helper untuk memparsing tanggal dari Spreadsheet agar tidak bergeser (mundur 1 hari akibat Timezone)
+        function parseDateCorrectly(dateString) {
+            if (!dateString) return new Date();
+            
+            let d = new Date(dateString);
+            
+            // Tangani jika format string adalah "07/08/2026 0:16:06" (DD/MM/YYYY)
+            // Default JS akan membacanya keliru sebagai MM/DD/YYYY (bulan 7 / Juli).
+            if (isNaN(d.getTime()) && typeof dateString === 'string' && dateString.includes('/')) {
+                const parts = dateString.split(' ')[0].split('/');
+                if (parts.length >= 3) {
+                    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                }
+            }
+
+            try {
+                // Paksa baca tanggal UTC dengan patokan Zona Waktu WITA (Makassar / Waktu Database) 
+                // untuk mencegah transaksi malam dari Apps Script bergeser menjadi hari sebelumnya di UI lokal.
+                const formatter = new Intl.DateTimeFormat('en-CA', { 
+                    timeZone: 'Asia/Makassar', 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit' 
+                });
+                const [y, m, day] = formatter.format(d).split('-');
+                
+                // Return tanggal lokal pada jam 00:00:00 untuk sinkronisasi filter yg akurat dan konsisten
+                return new Date(parseInt(y), parseInt(m) - 1, parseInt(day));
+            } catch (e) {
+                return d;
+            }
+        }
+
+        async function loadDataDariSheet() {
+            if(!appScriptUrl) return;
+            
+            // Tampilkan animasi loading pada text saldo sebelum fetch berjalan
+            document.getElementById('totalSaldo').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-3xl opacity-80"></i>';
+            document.getElementById('saldoCash').innerHTML = '<i class="fa-solid fa-ellipsis opacity-80 text-sm"></i>';
+            document.getElementById('saldoTransfer').innerHTML = '<i class="fa-solid fa-ellipsis opacity-80 text-sm"></i>';
+
+            try {
+                const response = await fetch(appScriptUrl);
+                const result = await response.json();
+                
+                if(result.summary) {
+                    document.getElementById('totalSaldo').innerText = formatRupiah(result.summary.saldo);
+                    document.getElementById('saldoCash').innerText = formatRupiah(result.summary.cash);
+                    document.getElementById('saldoTransfer').innerText = formatRupiah(result.summary.transfer);
+                }
+
+                if(result.history) {
+                    allHistoryData = result.history;
+                    applyFilter(); // Terapkan filter dan render
+                }
+            } catch (error) {
+                console.error("Gagal mengambil data", error);
+                // Menampilkan error jika fetch gagal (misal: koneksi terputus)
+                document.getElementById('totalSaldo').innerHTML = '<span class="text-xl">Gagal Memuat</span>';
+                document.getElementById('saldoCash').innerText = '-';
+                document.getElementById('saldoTransfer').innerText = '-';
+            }
+        }
+
+        function toggleCustomDate() {
+            const filterType = document.getElementById('filterWaktu').value;
+            const customDate = document.getElementById('customDateRange');
+            if (filterType === 'rentang') {
+                customDate.classList.remove('hidden');
+            } else {
+                customDate.classList.add('hidden');
+            }
+        }
+
+        function applyFilter() {
+            const filterType = document.getElementById('filterWaktu').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            let filteredData = allHistoryData;
+            
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+            // 1. Filter Waktu
+            if (filterType === 'hari_ini') {
+                filteredData = allHistoryData.filter(item => {
+                    const itemDate = parseDateCorrectly(item['Tanggal']);
+                    return itemDate.getTime() === today;
+                });
+            } else if (filterType === 'bulan_ini') {
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                filteredData = allHistoryData.filter(item => {
+                    const itemDate = parseDateCorrectly(item['Tanggal']);
+                    return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+                });
+            } else if (filterType === 'rentang') {
+                const startVal = document.getElementById('filterMulai').value;
+                const endVal = document.getElementById('filterSelesai').value;
+                if (startVal && endVal) {
+                    const [sy, sm, sd] = startVal.split('-');
+                    const start = new Date(parseInt(sy), parseInt(sm) - 1, parseInt(sd)).getTime();
+                    
+                    const [ey, em, ed] = endVal.split('-');
+                    const end = new Date(parseInt(ey), parseInt(em) - 1, parseInt(ed)).getTime();
+
+                    filteredData = allHistoryData.filter(item => {
+                        const itemTime = parseDateCorrectly(item['Tanggal']).getTime();
+                        return itemTime >= start && itemTime <= end;
+                    });
+                } else {
+                    showToast("Harap pilih tanggal mulai dan selesai", "error");
+                    return; // Jangan render jika tanggal kosong
+                }
+            }
+
+            // 2. Filter Status (Aktif / Dihapus)
+            if (filterStatus === 'aktif') {
+                filteredData = filteredData.filter(item => item['Metode'] !== 'Dihapus');
+            } else if (filterStatus === 'dihapus') {
+                filteredData = filteredData.filter(item => item['Metode'] === 'Dihapus');
+            }
+
+            // Jika mode semua waktu, batasi 50 agar aplikasi tidak lag
+            if (filterType === 'semua') {
+                filteredData = filteredData.slice(0, 50);
+            }
+
+            renderHistory(filteredData);
+        }
+
+        function renderHistory(dataList) {
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = '';
+            
+            if(dataList.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-10 text-sm"><i class="fa-solid fa-folder-open text-3xl mb-3 block"></i>Belum ada data transaksi</div>`;
+                return;
+            }
+
+            dataList.forEach(item => {
+                const isMasuk = item['Jenis'] === 'Masuk';
+                const isDeleted = item['Metode'] === 'Dihapus';
+                
+                // Styling visual berbeda untuk data yang dihapus (Warna pudar & Coret)
+                const iconColor = isDeleted ? 'text-slate-400 bg-slate-100' : (isMasuk ? 'text-green-500 bg-green-100' : 'text-red-500 bg-red-100');
+                const iconClass = isMasuk ? 'fa-arrow-down' : 'fa-arrow-up';
+                const sign = isMasuk ? '+' : '-';
+                const nominal = formatRupiah(item['Nominal'] || 0);
+                
+                const textColor = isDeleted ? 'text-slate-400 line-through' : (isMasuk ? 'text-green-600' : 'text-red-600');
+                const titleColor = isDeleted ? 'text-slate-400 line-through' : 'text-slate-700';
+
+                // Format Tanggal secara presisi menggunakan parser custom 
+                let tglFormat = item['Tanggal'];
+                try { 
+                    const tgl = parseDateCorrectly(item['Tanggal']);
+                    tglFormat = tgl.toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'});
+                } catch(e) {}
+
+                container.innerHTML += `
+                    <div class="flex items-center justify-between bg-white p-3.5 rounded-2xl shadow-sm border border-slate-100 ${isDeleted ? 'opacity-70 bg-slate-50' : ''}">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full ${iconColor} flex items-center justify-center shrink-0">
+                                <i class="fa-solid ${iconClass}"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold ${titleColor} text-sm">${item['Keterangan'] || '-'}</h4>
+                                <div class="flex items-center text-xs text-slate-500 mt-0.5 space-x-2">
+                                    <span><i class="fa-regular fa-calendar mr-1"></i>${tglFormat}</span>
+                                    <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    <span class="${isDeleted ? 'text-red-500 font-semibold' : ''}">${isDeleted ? 'Dihapus' : item['Metode']}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="font-bold text-sm ${textColor} text-right">
+                                ${sign} ${nominal}
+                            </div>
+                            ${!isDeleted ? `
+                            <button onclick="hapusTransaksi('${item['ID']}')" class="ml-4 w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors flex items-center justify-center shrink-0" title="Hapus Transaksi">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 5. API Request: Kirim Data Transaksi Baru (POST)
+        document.getElementById('transaksiForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Ambil Nilai
+            const tanggal = document.getElementById('inputTanggal').value;
+            const jenis = document.getElementById('jenisTransaksi').value;
+            const nominalString = document.getElementById('inputNominal').value;
+            const nominal = getNominalNumber(nominalString);
+            const metode = document.getElementById('inputMetode').value;
+            const keterangan = document.getElementById('inputKeterangan').value;
+
+            if(nominal <= 0) {
+                showToast("Nominal tidak valid!", "error");
+                return;
+            }
+
+            // Validasi jika Metode Pembayaran belum dipilih
+            if(!metode) {
+                showToast("Silakan pilih Metode Pembayaran terlebih dahulu!", "error");
+                return;
+            }
+
+            const data = { tanggal, jenis, nominal, metode, keterangan };
+
+            // UI State Loading & Kunci Tombol
+            const btnMasuk = document.getElementById('btnSubmitMasuk');
+            const btnKeluar = document.getElementById('btnSubmitKeluar');
+            const spinnerMasuk = document.getElementById('spinnerMasuk');
+            const spinnerKeluar = document.getElementById('spinnerKeluar');
+            
+            // Kunci semua interaksi tombol
+            btnMasuk.disabled = true;
+            btnKeluar.disabled = true;
+            btnMasuk.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+            btnKeluar.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+            
+            if(jenis === 'Masuk') {
+                spinnerMasuk.classList.remove('hidden');
+            } else {
+                spinnerKeluar.classList.remove('hidden');
+            }
+
+            try {
+                // Gunakan mode POST standard ke URL Apps Script
+                const response = await fetch(appScriptUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' } // text/plain hindari masalah CORS fetch
+                });
+                
+                const result = await response.json();
+                
+                if(result.status === 'success') {
+                    showToast("Transaksi berhasil disimpan!", "success");
+                    
+                    // Simpan tanggal saat ini sebelum form direset
+                    const savedDate = document.getElementById('inputTanggal').value;
+                    
+                    this.reset();
+                    
+                    // Kembalikan tanggal yang telah disimpan
+                    document.getElementById('inputTanggal').value = savedDate;
+                    
+                    resetMetodeUI(); // Reset visual metode ke posisi kosong
+                    loadDataDariSheet(); // update background data
+                } else {
+                    showToast("Gagal menyimpan data", "error");
+                }
+            } catch (error) {
+                // Apps Script kadang me-return error CORS padahal data berhasil masuk (tergantung browser setup redirect),
+                // jadi kita asumsikan sukses sementara dan load ulang data
+                console.warn(error);
+                showToast("Transaksi dikirim!", "success");
+                
+                // Simpan tanggal saat ini sebelum form direset
+                const savedDate = document.getElementById('inputTanggal').value;
+                
+                this.reset();
+                
+                // Kembalikan tanggal yang telah disimpan
+                document.getElementById('inputTanggal').value = savedDate;
+                
+                resetMetodeUI(); // Reset visual metode ke posisi kosong
+                loadDataDariSheet();
+            } finally {
+                // UI State Kembali Normal & Buka Kunci Tombol
+                btnMasuk.disabled = false;
+                btnKeluar.disabled = false;
+                btnMasuk.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                btnKeluar.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+                spinnerMasuk.classList.add('hidden');
+                spinnerKeluar.classList.add('hidden');
+            }
+        });
+
+        // 6. API Request: Hapus Data (Soft Delete)
+        let transactionIdToDelete = null;
+
+        function hapusTransaksi(id) {
+            transactionIdToDelete = id;
+            document.getElementById('inputPasswordHapus').value = '';
+            document.getElementById('errorPasswordHapus').classList.add('hidden');
+            document.getElementById('deleteModal').classList.remove('hidden');
+            
+            // Otomatis fokus ke input password setelah modal terbuka
+            setTimeout(() => document.getElementById('inputPasswordHapus').focus(), 100);
+        }
+
+        function closeDeleteModal() {
+            transactionIdToDelete = null;
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        async function executeDelete() {
+            if(!transactionIdToDelete) return;
+
+            const inputPass = document.getElementById('inputPasswordHapus').value;
+            const errorMsg = document.getElementById('errorPasswordHapus');
+
+            // Validasi Password
+            if (inputPass !== '123456') {
+                errorMsg.classList.remove('hidden');
+                document.getElementById('inputPasswordHapus').focus();
+                return; // Batalkan proses hapus jika password salah
+            }
+
+            errorMsg.classList.add('hidden');
+
+            const btnConfirm = document.getElementById('btnConfirmDelete');
+            const spinner = document.getElementById('spinnerDelete');
+
+            btnConfirm.disabled = true;
+            spinner.classList.remove('hidden');
+
+            try {
+                // Mengirim payload khusus ke backend dengan tanda "action: 'delete'"
+                const response = await fetch(appScriptUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'delete', id: transactionIdToDelete }),
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+                });
+                
+                const result = await response.json();
+                
+                if(result.status === 'success') {
+                    showToast("Transaksi berhasil dihapus!", "success");
+                    loadDataDariSheet(); // Muat ulang data untuk perbarui total saldo
+                } else {
+                    showToast("Gagal menghapus data", "error");
+                }
+            } catch (error) {
+                console.warn(error);
+                showToast("Perintah hapus terkirim!", "success");
+                loadDataDariSheet();
+            } finally {
+                btnConfirm.disabled = false;
+                spinner.classList.add('hidden');
+                closeDeleteModal();
+            }
+        }
+
+        // Pengecekan Service Worker dengan tambahan validasi protokol (menghindari error di environment Preview)
+        if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('PWA Terdaftar dengan scope:', registration.scope);
+                        
+                        // Deteksi jika ada pembaruan pada Service Worker
+                        registration.onupdatefound = () => {
+                            const installingWorker = registration.installing;
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Memaksa halaman memuat ulang secara otomatis ketika ada pembaruan di background
+                                    console.log('Versi baru ditemukan. Memuat ulang aplikasi...');
+                                    window.location.reload();
+                                }
+                            };
+                        };
+                    })
+                    .catch(error => {
+                        console.error('Gagal mendaftarkan PWA:', error);
+                    });
+            });
+        }
+
+        // Fungsi Trigger Instalasi PWA 
+        let deferredPrompt;
+        
+        // Menangkap event bawaan dari peramban jika aplikasi siap diinstal
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Mencegah peramban untuk otomatis memunculkan prompt (pop-up)
+            e.preventDefault();
+            // Menyimpan event untuk dipanggil secara manual nanti melalui tombol
+            deferredPrompt = e;
+        });
+
+        function installApp() {
+            if (deferredPrompt) {
+                // Munculkan prompt instalasi bawaan peramban
+                deferredPrompt.prompt();
+                // Tunggu respon dari pengguna (Menerima atau Menolak)
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('Pengguna menerima instalasi PWA');
+                    } else {
+                        console.log('Pengguna menolak instalasi PWA');
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // Tampilkan pesan panduan manual jika API belum terinisialisasi (misal di peramban iOS/Safari)
+                showToast("Gunakan menu browser 'Add to Home Screen' untuk menginstal.", "info");
+            }
+        }
+
+    </script>
+</body>
+</html>
