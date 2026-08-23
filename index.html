@@ -760,7 +760,7 @@
             });
         }
 
-       // Menangkap event bawaan dari peramban jika aplikasi siap diinstal
+  // Menangkap event bawaan dari peramban jika aplikasi siap diinstal
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -773,7 +773,7 @@ async function installApp() {
     const iconInstall = document.getElementById('iconInstall');
     const spinnerInstall = document.getElementById('spinnerInstall');
 
-    // 1. Aktifkan Mode Loading & Kunci Tombol
+    // 1. Aktifkan Mode Loading & Kunci Tombol secara Permanen
     btnInstall.disabled = true;
     btnInstall.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
     textInstall.innerText = 'Sedang menginstal...';
@@ -796,22 +796,15 @@ async function installApp() {
             // Kosongkan prompt setelah digunakan
             deferredPrompt = null;
         } else {
-            // Beri sedikit jeda agar animasi loading terlihat oleh pengguna (UX)
-            await new Promise(resolve => setTimeout(resolve, 600));
-            
             // Tampilkan pesan panduan manual jika API belum terinisialisasi (misal di iOS/Safari)
             showToast("Gunakan menu 'Add to Home Screen' atau 'Tambahkan ke Layar Utama' pada peramban.", "info");
         }
     } catch (error) {
         console.error("Terjadi kesalahan saat menginstal:", error);
-    } finally {
-        // 2. Kembalikan Tombol ke Keadaan Semula (Matikan Mode Loading)
-        btnInstall.disabled = false;
-        btnInstall.classList.remove('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
-        textInstall.innerText = 'Instal Aplikasi';
-        iconInstall.classList.remove('hidden');
-        spinnerInstall.classList.add('hidden');
     }
+    
+    // Blok `finally` yang sebelumnya berisi kode untuk mereset tombol kini dihapus,
+    // sehingga tombol akan terus berada dalam tampilan "Sedang menginstal..."
 }
 
     </script>
