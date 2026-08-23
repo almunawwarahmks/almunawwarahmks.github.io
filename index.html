@@ -31,23 +31,40 @@
 </head>
 <body class="bg-slate-100 font-sans text-slate-800 antialiased selection:bg-blue-200">
 
-    <!-- Layar Instalasi PWA -->
+    <!-- Layar Instalasi PWA (Hanya tampil di mobile browser) -->
     <div id="install-screen" class="min-h-screen bg-slate-50 flex-col items-center justify-center px-6 text-center animate-fade-in">
         <div class="w-24 h-24 bg-blue-600 rounded-3xl shadow-lg flex items-center justify-center mb-6 mx-auto">
             <i class="fa-solid fa-wallet text-white text-5xl"></i>
         </div>
         <h1 class="text-2xl font-extrabold text-slate-800 mb-2">Buku Kas Al Munawwarah</h1>
-        <p class="text-slate-500 mb-8 text-sm leading-relaxed">
-            Aplikasi ini dirancang khusus untuk pengalaman mobile terbaik. Silakan instal aplikasi ke layar utama Anda untuk mulai menggunakannya.
-        </p>
-        <button id="btnInstall" onclick="installApp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center w-full max-w-xs mx-auto mb-4">
-    <i id="iconInstall" class="fa-solid fa-download mr-2"></i> 
-    <span id="textInstall">Instal Aplikasi</span>
-    <i id="spinnerInstall" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
-</button>
-        <div class="text-xs text-slate-400 mt-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-w-xs mx-auto text-left">
-            <p class="font-semibold text-slate-600 mb-1"><i class="fa-brands fa-apple text-lg align-middle mr-1"></i> Pengguna iOS / Safari:</p>
-            Tekan ikon <i class="fa-solid fa-arrow-up-from-bracket mx-1"></i> <b>Share</b> di bawah layar Anda, lalu geser dan pilih <b>"Add to Home Screen"</b>.
+        
+        <!-- Pembungkus Konten Default (Belum Terinstal) -->
+        <div id="uninstalled-content">
+            <p class="text-slate-500 mb-8 text-sm leading-relaxed">
+                Aplikasi ini dirancang khusus untuk pengalaman mobile terbaik. Silakan instal aplikasi ke layar utama Anda untuk mulai menggunakannya.
+            </p>
+            
+            <button id="btnInstall" onclick="installApp()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-8 rounded-full shadow-xl shadow-blue-200 transition-all active:scale-95 flex items-center justify-center w-full max-w-xs mx-auto mb-4">
+                <i id="iconInstall" class="fa-solid fa-download mr-2"></i> 
+                <span id="textInstall">Instal Aplikasi</span>
+                <i id="spinnerInstall" class="fa-solid fa-circle-notch fa-spin ml-2 hidden"></i>
+            </button>
+    
+            <div class="text-xs text-slate-400 mt-6 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm max-w-xs mx-auto text-left">
+                <p class="font-semibold text-slate-600 mb-1"><i class="fa-brands fa-apple text-lg align-middle mr-1"></i> Pengguna iOS / Safari:</p>
+                Tekan ikon <i class="fa-solid fa-arrow-up-from-bracket mx-1"></i> <b>Share</b> di bawah layar Anda, lalu geser dan pilih <b>"Add to Home Screen"</b>.
+            </div>
+        </div>
+
+        <!-- Pembungkus Konten Diblokir (Sudah Terinstal) -->
+        <div id="installed-content" class="hidden mt-4 animate-fade-in">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-500 mx-auto mb-4">
+                <i class="fa-solid fa-check-to-slot text-3xl"></i>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800 mb-2">Aplikasi Telah Terinstal</h2>
+            <p class="text-slate-500 text-sm max-w-xs mx-auto">
+                Silakan tutup halaman peramban ini dan buka aplikasi <b>Buku Kas</b> langsung dari layar utama (Home Screen) HP Anda.
+            </p>
         </div>
     </div>
 
@@ -806,6 +823,34 @@ async function installApp() {
     // Blok `finally` yang sebelumnya berisi kode untuk mereset tombol kini dihapus,
     // sehingga tombol akan terus berada dalam tampilan "Sedang menginstal..."
 }
+
+        // --- LOGIKA PEMBLOKIRAN HALAMAN JIKA SUDAH TERINSTAL ---
+        
+        function blockBrowserAccess() {
+            document.getElementById('uninstalled-content').classList.add('hidden');
+            document.getElementById('installed-content').classList.remove('hidden');
+        }
+
+        // 1. Cek apakah pengguna saat ini sedang membuka dari dalam PWA (Standalone Mode)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+        if (isStandalone) {
+            // Jika terbuka dari dalam aplikasi, catat jejak di penyimpanan perangkat
+            // (Sangat krusial untuk perangkat iOS yang tidak memiliki event otomatis)
+            localStorage.setItem('isAppInstalled', 'true');
+        } else {
+            // Jika terbuka dari peramban biasa (Chrome/Safari), cek riwayat instalasinya
+            if (localStorage.getItem('isAppInstalled') === 'true') {
+                blockBrowserAccess(); // Blokir halaman 
+            }
+        }
+
+        // 2. Tangkap event otomatis saat instalasi sukses (Khusus Android/Chrome)
+        window.addEventListener('appinstalled', (event) => {
+            console.log('Instalasi sukses dicatat oleh sistem.');
+            localStorage.setItem('isAppInstalled', 'true');
+            blockBrowserAccess();
+        });
 
     </script>
 </body>
